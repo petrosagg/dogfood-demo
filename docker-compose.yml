@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  planka:
+    image: meltyshev/planka:latest
+    command: >
+      bash -c
+        "for i in `seq 1 30`; do
+          ./start.sh &&
+          s=$$? && break || s=$$?;
+          echo \"Tried $$i times. Waiting 5 seconds...\";
+          sleep 5;
+        done; (exit $$s)"
+    restart: unless-stopped
+    volumes:
+      - user-avatars:/app/public/user-avatars
+      - project-background-images:/app/public/project-background-images
+      - attachments:/app/public/attachments
+    ports:
+      - 3000:1337
+    environment:
+      - BASE_URL=http://localhost:3000
+      - DATABASE_URL=postgresql://postgres@postgres/planka
+      - SECRET_KEY=notsecretkey
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:alpine
+    restart: unless-stopped
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=planka
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    command: -c wal_level=logical
+    ports:
+      - 5433:5432
+
+  materialize:
+    image: materialize/materialized:v0.8.0
+    ports:
+      - 6875:6875
+    command:
+        - --experimental
+        - --timestamp-frequency=100ms
+    volumes:
+      - mz-data:/mzdata
+
+volumes:
+  user-avatars:
+  project-background-images:
+  attachments:
+  db-data:
+  mz-data:
